@@ -51,7 +51,7 @@
 * Huawei 5G CPE Pro 2 (H122-373)
 * Huawei 5G CPE Pro (H112-372)
 * Huawei 5G CPE6 (H165-383)
-* Huawei 5G CPE Ultra 6 (H168-383)（已在真实设备上验证：自动登录、monitoring/status、device/signal、device/information 均正常）
+* Huawei 5G CPE Ultra 6 (H168-383)
 
 （其他华为 LTE 设备大概率也可用）
 
@@ -65,28 +65,22 @@
 
 ```
 .
-├── go/                      # Go 模块根目录（module github.com/lvcdy/huawei-lte-api-go）
-│   ├── api/                 # 45 个 API 分组（对应 Python 版 huawei_lte_api/api）
-│   ├── config/              # 24 个 config 分组（对应 huawei_lte_api/config）
-│   ├── enums/               # 枚举类型（ControlMode、TextMode、Mode……）
-│   ├── session/             # 核心会话层：Session、Connection、ApiGroup、
-│   │                        #   User/UserSession、CESU-8、XML、RSA、错误类型
-│   ├── usermanual/          # 设备使用手册资源接口
-│   ├── cmd/                 # 命令行工具（诊断/连通性测试）
-│   ├── client.go            # Client 聚合器（对应 Client.py）
-│   └── go.mod
-├── go.work                  # Go workspace（use ./go）
-├── huawei_lte_api/          # 原版 Python 源码（迁移参照，仅作参考）
-├── examples/                # Python 版示例脚本
-└── pyproject.toml           # Python 版工程文件
+├── api/                    # 45 个 API 分组（对应 Python 版 huawei_lte_api/api）
+├── config/                 # 24 个 config 分组（对应 huawei_lte_api/config）
+├── enums/                  # 枚举类型（ControlMode、TextMode、Mode……）
+├── session/                # 核心会话层：Session、Connection、ApiGroup、
+│                           #   User/UserSession、CESU-8、XML、RSA、错误类型
+├── usermanual/             # 设备使用手册资源接口
+├── cmd/                    # 命令行工具（诊断/连通性测试）
+├── client.go               # Client 聚合器（对应 Client.py）
+├── go.mod                  # Go 模块定义（module github.com/lvcdy/huawei-lte-api-go）
+├── .github/workflows/      # GitHub Actions 工作流
+└── README.md
 ```
 
 ## 构建与测试
 
 ```bash
-# 进入 Go 模块目录
-cd go
-
 # 构建
 go build ./...
 
@@ -96,8 +90,6 @@ go test ./...
 # 静态检查
 go vet ./...
 ```
-
-> 在仓库根目录构建时使用 `go build all`（由于 `go.work` workspace 模式的限制）。
 
 ## 使用方法
 
@@ -180,7 +172,7 @@ result, err := client.Sms.SendSms(
 
 ## 代码示例
 
-`examples/` 目录保留了 Python 版示例脚本（可直接对照迁移逻辑），Go 版调用方式可参考 `go/client.go` 与各 API 文件。
+Go 版调用方式可参考 `client.go` 与各 API 文件，命令行工具示例见 `cmd/` 目录（`cpecheck` 连通性测试、`cpedebug` 调试）。
 
 更多完整示例：
 

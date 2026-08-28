@@ -1,0 +1,16 @@
+# Go 源码统一使用 LF 行尾（gofmt 要求），避免 Windows/CI 差异
+*.go text eol=lf
+
+# 文本文件默认使用 LF（CI 上一致）
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.mod text eol=lf
+
+# 二进制文件不做行尾转换
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
