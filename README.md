@@ -13,7 +13,9 @@
 - ✅ 完整复刻 Python 版行为：CESU-8 编码、XML 序列化、CSRF Token 刷新与重试、RSA 加密（PKCS1_v1_5 / OAEP-SHA1）、JSON 响应解析
 - ✅ 自动挂载 CookieJar：与 Python `requests.Session` 一致，会话 Cookie 自动保存与携带（部分新型号如 H168-383 将 CSRF Token 绑定在 SessionID Cookie 上，不带 Cookie 会返回 `125003`；本库对传入的 `http.Client` 自动补 Jar，且不影响全局 `http.DefaultClient`）
 - ✅ 与 Python 版一致的错误模型：`ResponseError` 及 14 个派生错误类型（`NotSupportedError`、`LoginRequiredError`、`SystemBusyError`、`LoginCsrfError`……），支持 `errors.Is` / `errors.As` 判断
-- ✅ 单元测试覆盖核心逻辑（session、user、cesu8 等），`go test ./...` 全绿
+- ✅ 单元测试覆盖核心逻辑（session、user、cesu8 等）及本库新增的 5G 专有端点，`go test ./...` 全绿
+- ✅ **5G CPE 专有端点**（参考 Brovi-Huawei-5G-CPE-Manager 补齐）：`device/seccellinfo`（载波聚合辅小区）、`device/nbrcellinfo`（邻小区）、`net/antenna-configuration`（天线配置）、`net/lock-cell`（锁频）、`developermode/developer-mode|developer-item`（开发者模式）、`app/atport-status`（AT 调试端口）、`wlan/wlan-debug`（WLAN 调试）
+- ✅ **设备实测工具** `cmd/cpetest`：一条命令遍历上述 5G 端点，读操作默认全跑、写操作需显式 flag
 
 ## 测试过的设备
 
@@ -71,7 +73,10 @@
 ├── session/                # 核心会话层：Session、Connection、ApiGroup、
 │                           #   User/UserSession、CESU-8、XML、RSA、错误类型
 ├── usermanual/             # 设备使用手册资源接口
-├── cmd/                    # 命令行工具（诊断/连通性测试）
+├── cmd/                    # 命令行工具：
+│   ├── cpecheck/           #   连通性/信号测试（诊断）
+│   ├── cpedebug/           #   原始 HTTP 登录流程调试
+│   └── cpetest/            #   5G 专有端点实测（seccellinfo/lock-cell 等）
 ├── client.go               # Client 聚合器（对应 Client.py）
 ├── go.mod                  # Go 模块定义（module github.com/lvcdy/huawei-lte-api-go）
 ├── .github/workflows/      # GitHub Actions 工作流
@@ -170,9 +175,94 @@ result, err := client.Sms.SendSms(
 )
 ```
 
-## 代码示例
+## 5G CPE 专有端点
 
-Go 版调用方式可参考 `client.go` 与各 API 文件，命令行工具示例见 `cmd/` 目录（`cpecheck` 连通性测试、`cpedebug` 调试）。
+以下端点为本库参考 Android 应用 [Brovi-Huawei-5G-CPE-Manager](https://github.com/fz911a/Brovi-Huawei-5G-CPE-Manager) 补充，主要面向 5G CPE（H122-373 / H168-383 等）。部分端点需要**开发者模式登录**（loginflag=2 挑战认证），普通 admin 凭据可能返回 `PermissionDeniedError`。
+
+| Go 方法 | HTTP 端点 | 说明 | 需要开发者模式 |
+| --- | --- | --- | --- |
+| `Device.SecCellInfo()` | `GET device/seccellinfo` | 载波聚合**辅小区**（SCell）信息，返回 `ARFCN,Band,PCI,RSRP,...;...` 风格 CSV | 部分固件 |
+| `Device.NbrCellInfo()` | `GET device/nbrcellinfo` | **邻小区**信息，返回 `ARFCN,Band,PCI,RSRP,...;...` 风格 CSV | 部分固件 |
+| `Net.AntennaConfiguration()` | `GET net/antenna-configuration` | 天线配置（模式/增益） | 否 |
+| `Ntwk.LockCell(lock, freq, pci)` | `POST net/lock-cell` | 锁定/解锁指定频点小区（`lock=1` 锁、`0` 解，`freq`/`pci` 传 0 表示清除） | 是 |
+| `Developer.DeveloperMode()` | `GET developermode/developer-mode` | 开发者模式开关状态 | 是 |
+| `Developer.DeveloperItem()` | `GET developermode/developer-item` | 开发者模式子项（telnet 等） | 是 |
+| `Developer.AtportStatus()` | `GET app/atport-status` | AT 调试端口状态查询 | 否（写需要） |
+| `Developer.SetAtportStatus(enable)` | `POST app/atport-status` | 开启/关闭 AT 调试端口（如 Telnet 20249） | 是 |
+| `WLan.WlanDebug()` | `GET wlan/wlan-debug` | WLAN 调试配置查询 | 是 |
+| `WLan.SetWlanDebug(fields)` | `POST wlan/wlan-debug` | 写入 WLAN 调试字段（键名随固件） | 是 |
+
+```go
+// 载波聚合信息（5G CPE）
+sec, err := client.Device.SecCellInfo()
+fmt.Println(sec["nrseccell_list"]) // "123,78,0,501,440,-80,-95,-11,8;..."
+
+nbr, err := client.Device.NbrCellInfo()
+fmt.Println(nbr["nbrcell_ltelist"])
+
+// 天线配置（无需开发者模式）
+ant, err := client.Net.AntennaConfiguration()
+fmt.Println(ant) // map[gain:"3.5" ...]
+
+// ---- 以下需要开发者模式登录 ----
+
+// 锁定 频点 1450 / PCI 501 的小区
+resp, err := client.Ntwk.LockCell(1, 1450, 501)
+// 解锁（复位到自动选网）
+resp, err = client.Ntwk.LockCell(0, 0, 0)
+
+// 查询/开关 AT 调试端口
+status, _ := client.Developer.AtportStatus()
+_, err = client.Developer.SetAtportStatus(1) // 开
+_, err = client.Developer.SetAtportStatus(0) // 关
+
+// WLAN 调试配置
+debug, _ := client.WLan.WlanDebug()
+_, err = client.WLan.SetWlanDebug(map[string]interface{}{
+	"telnet_enable": 0,
+})
+```
+
+> ⚠️ **锁频与开发者模式写入会改变设备工作状态**，请确认目标频点/PCI 后再执行，并及时用 `LockCell(0,0,0)` / `SetAtportStatus(0)` 复位。
+
+## 命令行工具
+
+仓库 `cmd/` 下提供三个开箱即用的工具：
+
+### cpecheck —— 连通性与信号测试
+
+```bash
+go run ./cmd/cpecheck --url=http://192.168.8.1/ --username=admin --password=xxxx
+# 连带输出 monitoring/status、device/signal、device/information 结果
+```
+
+### cpedebug —— 原始 HTTP 登录流程调试
+
+用于排查 handshake/challenge 阶段的异常，输出原始请求响应。
+
+### cpetest —— 5G 专有端点实测
+
+```bash
+# 只读端点全部执行（默认）
+go run ./cmd/cpetest --url=http://192.168.8.1/ --username=admin --password=xxxx
+
+# 跳过部分端点
+# go run ./cmd/cpetest -skip seccellinfo,nbrcellinfo ...
+
+# 写端点（须显式指定；下述命令执行后再见 README 提醒复位）
+# 锁定小区 频点1450/PCI501
+# go run ./cmd/cpetest -set-lock-cell 1450:501 ...
+# 清除锁频
+# go run ./cmd/cpetest -set-lock-cell 0:0 ...
+# 开启 AT 调试端口（Telnet）
+# go run ./cmd/cpetest -set-atport 1 ...
+# 写入 wlan 调试字段
+# go run ./cmd/cpetest -set-wlan-debug telnet_enable=0,developermode_enable=1 ...
+```
+
+## 更多示例
+
+Go 版调用方式可参考 `client.go` 与各 API 文件；完整示例仓库如下：
 
 更多完整示例：
 

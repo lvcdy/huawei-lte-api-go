@@ -113,3 +113,9 @@ func (n *Net) CspsState() (map[string]interface{}, error) {
 func (n *Net) Reconnect() (interface{}, error) {
 	return n.S.PostSet("net/reconnect", session.O("ReconnectAction", 1), false, "api", false, false)
 }
+
+// AntennaConfiguration 获取天线配置。对应 net/antenna-configuration。
+// 5G CPE 专有端点，返回天线模式/增益等信息。部分固件可能不支持（NotSupportedError）。
+func (n *Net) AntennaConfiguration() (map[string]interface{}, error) {
+	return n.S.Get("net/antenna-configuration", nil, "api")
+}

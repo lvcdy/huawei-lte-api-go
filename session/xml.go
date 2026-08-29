@@ -26,6 +26,16 @@ func O(pairs ...interface{}) *ODict {
 	return d
 }
 
+// OFromMap 从 map[string]interface{} 构造 ODict（保留任意顺序，适合动态字段集合端点）。
+// 用于把无法预定义字段名的调试端点参数（如 wlan/wlan-debug）原样透传。
+func OFromMap(m map[string]interface{}) *ODict {
+	d := &ODict{}
+	for k, v := range m {
+		d.Set(k, v)
+	}
+	return d
+}
+
 // Set 追加或覆盖 key（保持首次插入顺序）。
 func (d *ODict) Set(key string, val interface{}) {
 	for i, k := range d.keys {

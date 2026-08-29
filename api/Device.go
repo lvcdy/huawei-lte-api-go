@@ -131,3 +131,17 @@ func (d *Device) Mode(mode enums.Mode) (interface{}, error) {
 func (d *Device) CompressLogfile() (map[string]interface{}, error) {
 	return d.S.Get("device/compresslogfile", nil, "api")
 }
+
+// SecCellInfo 获取辅小区（载波聚合 SCell）信息。对应 device/seccellinfo。
+// 5G CPE 专有端点，返回类似 "ARFCN,Band,BW(可选),PCI,RSRP,RSRQ,RSSI,SINR;..."
+// 的 CSV 风格字段（nrseccell_list / lteseccell_list 等）。部分固件返回空响应。
+func (d *Device) SecCellInfo() (map[string]interface{}, error) {
+	return d.S.Get("device/seccellinfo", nil, "api")
+}
+
+// NbrCellInfo 获取邻小区（邻区/Neighbor Cell）信息。对应 device/nbrcellinfo。
+// 5G CPE 专有端点，返回类似 "ARFCN,Band,PCI,RSRP,RSRQ,RSSI,SINR;..."
+// 的 CSV 风格字段（nbrcell_nrlist / nbrcell_ltelist 等）。部分固件返回空响应。
+func (d *Device) NbrCellInfo() (map[string]interface{}, error) {
+	return d.S.Get("device/nbrcellinfo", nil, "api")
+}

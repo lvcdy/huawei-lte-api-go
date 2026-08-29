@@ -557,3 +557,17 @@ func (w *WLan) GetFilterStatus() (map[string]interface{}, error) {
 		"mode":    mode,
 	}, nil
 }
+
+// WlanDebug 获取 wlan 调试配置。对应 wlan/wlan-debug。
+// 5G CPE 开发者模式端点，返回 telnet/debug 相关可写字段。
+// 需要开发者模式登录（loginflag=2）才能访问。
+func (w *WLan) WlanDebug() (map[string]interface{}, error) {
+	return w.S.Get("wlan/wlan-debug", nil, "api")
+}
+
+// SetWlanDebug 写入 wlan 调试配置。对应 wlan/wlan-debug (post_set)。
+// 需要开发者模式登录；字段名与 WlanDebug 返回的可写键一致
+// （如 "telnet_enable"、"developermode_enable" 等，固件间有差异）。
+func (w *WLan) SetWlanDebug(fields map[string]interface{}) (interface{}, error) {
+	return w.S.PostSet("wlan/wlan-debug", session.OFromMap(fields), false, "api", false, false)
+}
