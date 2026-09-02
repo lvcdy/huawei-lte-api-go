@@ -79,6 +79,12 @@ cargo run --example live_test
 
 # 带登录测试（需正确密码，通过环境变量传入）
 $env:HUAWEI_USERNAME="admin"; $env:HUAWEI_PASSWORD="你的密码"; cargo run --example live_test
+
+# 每设备流量统计（登录后拉取 system/HostInfo，按总流量排序打印表格）
+$env:HUAWEI_USERNAME="admin"; $env:HUAWEI_PASSWORD="你的密码"; cargo run --example device_traffic
+
+# 端点扫描（登录后对约 90 个候选端点逐个 GET，标记可用的 DATA 端点）
+$env:HUAWEI_USERNAME="admin"; $env:HUAWEI_PASSWORD="你的密码"; cargo run --example scan_endpoints
 ```
 
 > ⚠️ Windows 终端默认 GBK 代码页会把输出中的中文显示成乱码（如 `涓浗绉诲姩`）。
@@ -91,7 +97,16 @@ $env:HUAWEI_USERNAME="admin"; $env:HUAWEI_PASSWORD="你的密码"; cargo run --e
 在 H168-383 设备上实测通过的端点：
 
 - **公开（未登录）**：`device/basic_information`、`monitoring/status`、`monitoring/check-notifications`、`user/state-login`、`net/current-plmn`（`中国移动`）；受保护端点（`device/information`、`device/signal`）在未登录时正确返回 `No rights (needs login)`。
-- **认证后（登录成功）**：`user/login`（SHA256 + CSRF + RSA）、`device/information`、`device/boot_time`、`monitoring/status`、`monitoring/traffic-statistics`、`net/net-mode`、`net/network`、`device/antenna_type`、`device/antenna_set_type`、`sms/sms-count`、`user/logout`。
+- **认证后（登录成功）**：
+  - **每设备流量/主机列表**：`system/HostInfo`（JSON 数组，每设备含 `TxKBytes`/`RxKBytes`/`UpRate`/`DownRate`，见 `examples/device_traffic.rs`）、`wlan/host-list`（当前在线 WiFi 主机）、`lan/HostInfo`（DHCP 主机全列表）。
+  - **monitoring 组**：`monitoring/status`、`traffic-statistics`、`month_statistics`、`start_date`、`converged-status`、`check-notifications`、`daily-data-limit`、`statistic-feature-switch`、`onekey_diag`。
+  - **system 组**：`system/deviceinfoex`、`system/devcapacity`、`system/onlinestate`（含最新升级日志、设备名/序列号/固件版本）。
+  - **wlan 组**：`wlan/multi-basic-settings`（SSID/加密模式列表）、`multi-security-settings`、`multi-security-settings-ex`、`multi-switch-settings`、`multi-macfilter-settings`、`multi-macfilter-settings-ex`、`wifi-feature-switch`。
+  - **net 组**：`net/net-mode`、`net/network`、`net/net-mode-list`（可用制式/频段列表）、`net/register`、`net/cell-info`（小区 ID + LAC）。
+  - **security 组**：`security/mac-filter`、`security/upnp`。
+  - **dhcp 组**：`dhcp/settings`（网段/租期/DNS）。
+  - **sms 组**：`sms/sms-count`。
+  - 其余：`user/login`（SHA256 + CSRF + RSA）、`device/information`、`device/boot_time`、`device/antenna_type`、`device/antenna_set_type`、`user/logout`。
 - **设备固件权限限制**（返回 `100003`，需更高权限账号，属正常设备行为，非库 bug）：`device/antenna_status`、`device/antenna_settings`、`wlan/basic_settings`。诊断工具 `examples/diag_endpoints.rs` 可登录后 dump 各端点的原始 XML 响应以区分设备行为与库解析问题。
 
 ## 目录结构
