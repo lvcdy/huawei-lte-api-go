@@ -1,14 +1,5 @@
-# Go build artifacts
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-bin/
-build/
-dist/
+# Rust build artifacts
+/target
 
 # IDE
 .idea/

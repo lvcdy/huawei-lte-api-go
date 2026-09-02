@@ -7,47 +7,45 @@ on:
 
 jobs:
   test:
-    name: Go ${{ matrix.go-version }} / ${{ matrix.os }}
+    name: Rust ${{ matrix.toolchain }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        go-version: ["1.27"]
+        toolchain: [stable]
         os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v5
 
-    - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v6
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: ${{ matrix.go-version }}
+        toolchain: ${{ matrix.toolchain }}
+        components: rustfmt, clippy
 
-    - name: Cache Go modules
+    - name: Cache cargo registry
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-go-
+          ${{ runner.os }}-cargo-
 
-    - name: Check formatting (gofmt)
-      run: |
-        unformatted=$(gofmt -l .)
-        if [ -n "$unformatted" ]; then
-          echo "The following files are not formatted by gofmt:"
-          echo "$unformatted"
-          exit 1
-        fi
-      if: runner.os == 'Linux'
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Clippy
+      run: cargo clippy --all-targets -- -D warnings
 
     - name: Build
-      run: go build ./...
-
-    - name: Vet
-      run: go vet ./...
+      run: cargo build --all-targets
 
     - name: Test
-      run: go test -v ./...
+      run: cargo test --all-targets
+
+    - name: Doc build
+      run: cargo doc --no-deps
